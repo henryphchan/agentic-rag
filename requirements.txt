@@ -1,0 +1,3 @@
+# Master requirements file for local development
+-r frontend/requirements.txt
+-r backend/requirements.txt

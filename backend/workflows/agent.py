@@ -1,0 +1,109 @@
+from typing import Annotated, Sequence, TypedDict
+from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
+from langchain_ollama import ChatOllama
+from langgraph.graph import StateGraph, END
+from langgraph.graph.message import add_messages
+from langgraph.prebuilt import ToolNode
+
+from backend.tools.semantic_search import search_knowledge_base
+from backend.tools.cypher_generator import execute_graph_query
+from backend.core.config import settings
+
+# 1. Define the State
+class AgentState(TypedDict):
+    """
+    Represents the state of our LangGraph state machine.
+    The `add_messages` reducer ensures new messages are appended to the list 
+    rather than overwriting it, preserving the conversation history.
+    """
+    messages: Annotated[Sequence[BaseMessage], add_messages]
+
+# 2. Initialize the Model and Tools
+# We bundle the tools into a list that LangGraph can manage
+tools = [search_knowledge_base, execute_graph_query]
+
+# Instantiate the Chat interface for Ollama and bind the tools to it
+llm = ChatOllama(
+    model=settings.LLM_MODEL,
+    base_url=settings.OLLAMA_BASE_URL,
+    temperature=0.0  # Keep temperature 0 for highly deterministic tool calling
+)
+llm_with_tools = llm.bind_tools(tools)
+
+# 3. Define the Nodes
+def call_model(state: AgentState) -> dict:
+    """
+    The primary agent node. It passes the current state (conversation history) 
+    to the LLM. If the LLM decides to use a tool, it will return an AIMessage 
+    with a tool_calls payload.
+
+    Args:
+        state (AgentState): The current graph state.
+
+    Returns:
+        dict: A dictionary containing the new message to append to the state.
+    """
+    messages = state["messages"]
+    response = llm_with_tools.invoke(messages)
+    return {"messages": [response]}
+
+# We use LangGraph's prebuilt ToolNode to automatically execute the tools 
+# requested by the LLM and return the results as ToolMessages.
+tool_node = ToolNode(tools)
+
+# 4. Define the Routing Logic (Conditional Edge)
+def should_continue(state: AgentState) -> str:
+    """
+    Determines whether the graph should continue to the tool execution node 
+    or end the execution loop.
+
+    Args:
+        state (AgentState): The current graph state.
+
+    Returns:
+        str: The name of the next node to transition to ("tools" or END).
+    """
+    last_message = state["messages"][-1]
+    
+    # If the LLM made a tool call, we must route to the tool node
+    if last_message.tool_calls:
+        return "tools"
+    
+    # If no tool was called, the LLM has synthesized its final answer
+    return END
+
+# 5. Build and Compile the Graph
+def create_agent_graph():
+    """
+    Constructs and compiles the LangGraph state machine.
+
+    Returns:
+        CompiledGraph: The executable LangGraph application.
+    """
+    workflow = StateGraph(AgentState)
+
+    # Add the nodes
+    workflow.add_node("agent", call_model)
+    workflow.add_node("tools", tool_node)
+
+    # Add the edges
+    workflow.set_entry_point("agent")
+    
+    # Add conditional routing from the agent node
+    workflow.add_conditional_edges(
+        "agent",
+        should_continue,
+        {
+            "tools": "tools",
+            END: END
+        }
+    )
+    
+    # After tools execute, strictly route back to the agent to evaluate the new data
+    workflow.add_edge("tools", "agent")
+
+    # Compile the graph into an executable
+    return workflow.compile()
+
+# Export an instantiated version of the graph
+agent_executor = create_agent_graph()

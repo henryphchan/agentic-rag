@@ -1,0 +1,6 @@
+# .gitignore
+venv/
+__pycache__/
+.env
+data_pipeline/raw_data/*
+!data_pipeline/raw_data/.gitkeep

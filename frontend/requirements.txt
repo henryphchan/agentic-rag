@@ -1,0 +1,6 @@
+# --- User Interface ---
+streamlit        # Pure Python framework for rapid UI development
+
+# --- Utilities ---
+requests         # For sending user prompts to your FastAPI backend
+python-dotenv    # Loads environment variables (like the backend API URL)

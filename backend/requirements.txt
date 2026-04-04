@@ -1,0 +1,18 @@
+# --- API & Web Server ---
+fastapi          # Modern, fast web framework for building APIs
+uvicorn[standard] # Lightning-fast ASGI server to run FastAPI
+pydantic         # Data validation and settings management (used by FastAPI)
+
+# --- Orchestration & Agent Logic ---
+langgraph           # Framework for creating cyclical, agentic workflows
+langchain-core      # Core interfaces for LLMs and tools (Dependency Inversion)
+langchain-community # Community integrations (useful for standard tool templates)
+langchain-ollama    # LangChain integration for Ollama
+
+# --- Database Clients ---
+neo4j            # Official Python driver for Neo4j AuraDB
+qdrant-client    # Official Python client for Qdrant Cloud
+
+# --- Utilities ---
+requests         # For making HTTP calls to your local Ollama server
+python-dotenv    # Loads environment variables from the .env file
