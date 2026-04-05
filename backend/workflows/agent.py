@@ -43,6 +43,10 @@ llm = ChatOllama(
 llm_with_tools = llm.bind_tools(tools)
 
 # 3. Define the Nodes
+
+system_prompt = SystemMessage(content="""You are an intelligent agent with access to multiple tools.
+Before you call any tool, you MUST briefly explain your thought process and what your plan is in your standard text response. Do not output just the tool call!""")
+
 def call_model(state: AgentState) -> dict:
     """
     The primary agent node. It passes the current state (conversation history) 
@@ -56,7 +60,14 @@ def call_model(state: AgentState) -> dict:
         dict: A dictionary containing the new message to append to the state.
     """
     messages = state["messages"]
-    response = llm_with_tools.invoke(messages)
+    
+    # Inject the system prompt if it's not already the first message
+    if messages and not isinstance(messages[0], SystemMessage):
+        extended_messages = [system_prompt] + list(messages)
+    else:
+        extended_messages = messages
+        
+    response = llm_with_tools.invoke(extended_messages)
     return {"messages": [response]}
 
 # We use LangGraph's prebuilt ToolNode to automatically execute the tools 
