@@ -88,22 +88,26 @@ def should_continue(state: AgentState) -> str:
     """
     last_message = state["messages"][-1]
     
+    # Calculate how many tools have been called for the current question
+    total_tools_for_question = 0
+    for msg in reversed(state["messages"]):
+        if isinstance(msg, HumanMessage):
+            break
+        if getattr(msg, "tool_calls", None):
+            total_tools_for_question += len(msg.tool_calls)
+    
     # If the LLM made a tool call, we must route to the tool node
     if last_message.tool_calls:
-        num_tools = len(last_message.tool_calls)
-        plan = last_message.content.strip() if getattr(last_message, 'content', None) else "No explicit plan provided."
-        
         logger.debug("--- Tool Execution ---")
-        logger.debug(f"LLM Plan: {plan}")
-        logger.debug(f"Tools Called: {num_tools}")
+        logger.debug(f"Cumulative Tools Called for Question: {total_tools_for_question}")
         
         for i, tool in enumerate(last_message.tool_calls):
-            logger.debug(f"  -> Tool {i+1}: {tool['name']}")
+            logger.debug(f"  -> Tool: {tool['name']}")
             
         return "tools"
     
     # If no tool was called, the LLM has synthesized its final answer
-    logger.debug("--- Synthesizing Final Answer ---")
+    logger.debug(f"--- Synthesizing Final Answer (Total tools used: {total_tools_for_question}) ---")
     return END
 
 # 5. Build and Compile the Graph
