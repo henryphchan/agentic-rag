@@ -86,6 +86,9 @@ def should_continue(state: AgentState) -> str:
         logger.debug(f"LLM Plan: {plan}")
         logger.debug(f"Tools Called: {num_tools}")
         
+        for i, tool in enumerate(last_message.tool_calls):
+            logger.debug(f"  -> Tool {i+1}: {tool['name']}")
+            
         return "tools"
     
     # If no tool was called, the LLM has synthesized its final answer
