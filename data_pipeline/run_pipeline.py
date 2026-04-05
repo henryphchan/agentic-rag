@@ -2,6 +2,7 @@ import sys
 import os
 import argparse
 import hashlib
+import re
 
 # Ensure the backend module is accessible
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -77,12 +78,26 @@ def main():
         if relationships:
             print(f"  -> Found {len(relationships)} relationships. Loading to Neo4j...")
             for rel in relationships:
+                source = rel.get("source")
+                target = rel.get("target")
+                rel_type_raw = rel.get("relationship", "RELATES_TO")
+
+                if not source or not target:
+                    continue
+
+                # Sanitize relationship type for Cypher (must be alphanumeric/underscore)
+                rel_type = re.sub(r'[^A-Z0-9_]', '_', str(rel_type_raw).upper())
+                
+                # Ensure relationship type is not empty after filtering and doesn't start with a number
+                if not rel_type or rel_type[0].isdigit():
+                    rel_type = f"REL_{rel_type}" if rel_type else "RELATES_TO"
+
                 cypher = f"""
                 MERGE (s:Entity {{name: $source}})
                 MERGE (t:Entity {{name: $target}})
-                MERGE (s)-[:{rel.get('relationship', 'RELATES_TO').upper().replace(' ', '_')}]->(t)
+                MERGE (s)-[:{rel_type}]->(t)
                 """
-                neo4j.execute_query(cypher, {"source": rel.get("source"), "target": rel.get("target")})
+                neo4j.execute_query(cypher, {"source": source, "target": target})
 
     neo4j.close()
     print("\n✅ ETL Pipeline Complete!")
