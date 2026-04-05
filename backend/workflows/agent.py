@@ -1,6 +1,18 @@
+import logging
 from typing import Annotated, Sequence, TypedDict
 from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 from langchain_ollama import ChatOllama
+
+# Set up logging for this module
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+
+if not logger.handlers:
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.DEBUG)
+    formatter = logging.Formatter('[%(asctime)s] %(levelname)s: %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+    console_handler.setFormatter(formatter)
+    logger.addHandler(console_handler)
 from langgraph.graph import StateGraph, END
 from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode
@@ -67,9 +79,17 @@ def should_continue(state: AgentState) -> str:
     
     # If the LLM made a tool call, we must route to the tool node
     if last_message.tool_calls:
+        num_tools = len(last_message.tool_calls)
+        plan = last_message.content.strip() if getattr(last_message, 'content', None) else "No explicit plan provided."
+        
+        logger.debug("--- Tool Execution ---")
+        logger.debug(f"LLM Plan: {plan}")
+        logger.debug(f"Tools Called: {num_tools}")
+        
         return "tools"
     
     # If no tool was called, the LLM has synthesized its final answer
+    logger.debug("--- Synthesizing Final Answer ---")
     return END
 
 # 5. Build and Compile the Graph
