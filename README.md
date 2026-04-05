@@ -126,7 +126,7 @@ python data_pipeline/run_pipeline.py --file tests/sample_data/sample.txt
 **Option B: Batch ingest an entire directory**
 To index all supported files within a folder recursively (defaults to `raw_data/`), use the batch ingest script:
 ```bash
-python data_pipeline/batch_ingest.py --dir raw_data
+python data_pipeline/batch_ingest.py --dir data_pipeline/raw_data
 ```
 
 ### 5. Start the Application
